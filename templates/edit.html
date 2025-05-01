@@ -1,0 +1,77 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>undertale.html editor</title>
+
+  <link  href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/codemirror.min.css"
+         rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/mode/xml/xml.min.js"></script>
+  <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+
+  <style>
+    html, body { margin: 0; height: 100vh; }
+    #wrap { display: flex; height: 100%; }
+    #left, #right {
+      width: 50vw;
+      height: 100%;
+    }
+    #left { border-right: 1px solid #ccc; }
+    .CodeMirror { height: 100% !important; }
+    #preview {
+      width: 100%; height: 100%; border: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="left">
+      <textarea id="ta">{{ initial|e }}</textarea>
+    </div>
+    <div id="right">
+      <iframe id="preview"></iframe>
+    </div>
+  </div>
+
+  <script>
+    // CodeMirror setup
+    const cm = CodeMirror.fromTextArea(document.getElementById("ta"), {
+      mode: "text/html", lineNumbers: true
+    });
+    const iframe = document.getElementById("preview");
+    function render(html){
+      const d = iframe.contentWindow.document;
+      d.open(); d.write(html); d.close();
+    }
+    render(cm.getValue());
+
+    // Socket.IO
+    const socket = io();
+    let fromRemote = false;
+
+    socket.emit("join");
+
+    cm.on("change", () => {
+      if (fromRemote) return;
+      const html = cm.getValue();
+      render(html);
+      socket.emit("update", { content: html });
+    });
+
+    socket.on("init", data => {
+      fromRemote = true;
+      cm.setValue(data.content);
+      render(data.content);
+      fromRemote = false;
+    });
+
+    socket.on("update", data => {
+      fromRemote = true;
+      cm.setValue(data.content);
+      render(data.content);
+      fromRemote = false;
+    });
+  </script>
+</body>
+</html>
